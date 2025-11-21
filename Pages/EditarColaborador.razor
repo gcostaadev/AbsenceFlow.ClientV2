@@ -1,0 +1,181 @@
+﻿@page "/colaboradores/editar/{ColaboradorId}"
+@inject AbsenceFlow.ClientV2.Services.IColaboradorApiService ColaboradorService
+@inject NavigationManager Navigation
+@using AbsenceFlow.ClientV2.Models
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Editar Colaborador</PageTitle>
+
+<h3 class="mb-4 text-primary">
+    <i class="bi bi-pencil-square me-2"></i> Editar Colaborador
+</h3>
+
+@if (string.IsNullOrEmpty(ColaboradorId))
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        ID do colaborador não fornecido.
+    </div>
+}
+else if (isLoading)
+{
+    <div class="d-flex align-items-center justify-content-center p-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <span class="ms-3 text-secondary">Carregando dados do colaborador...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        @errorMessage
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @successMessage
+            <button type="button"
+                    class="btn-close"
+                    @onclick="() => successMessage = string.Empty"></button>
+        </div>
+    }
+
+    <EditForm Model="colaboradorToUpdate"
+              OnValidSubmit="HandleValidSubmit"
+              class="card shadow-lg p-4">
+
+        <DataAnnotationsValidator />
+        <ValidationSummary class="alert alert-warning" />
+
+        <div class="mb-3">
+            <label for="nome" class="form-label fw-bold">Nome Completo</label>
+            <InputText id="nome" class="form-control"
+                       @bind-Value="colaboradorToUpdate.NomeCompleto" />
+            <ValidationMessage For="@(() => colaboradorToUpdate.NomeCompleto)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label fw-bold">E-mail Corporativo</label>
+            <InputText id="email" class="form-control"
+                       @bind-Value="colaboradorToUpdate.EmailCorporativo" />
+            <ValidationMessage For="@(() => colaboradorToUpdate.EmailCorporativo)" />
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-lg"
+                    @onclick="Cancel">
+                <i class="bi bi-x-circle me-2"></i> Cancelar
+            </button>
+
+            <button type="submit"
+                    class="btn btn-primary btn-lg"
+                    disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Salvando...</span>
+                }
+                else
+                {
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <span>Salvar Alterações</span>
+                }
+            </button>
+
+        </div>
+
+    </EditForm>
+}
+
+@code {
+    [Parameter] public string ColaboradorId { get; set; } = string.Empty;
+
+    private ColaboradorUpdateModel colaboradorToUpdate = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(ColaboradorId) && isLoading)
+        {
+            await LoadColaboradorData();
+        }
+    }
+
+    private async Task LoadColaboradorData()
+    {
+        isLoading = true;
+
+        try
+        {
+            if (!int.TryParse(ColaboradorId, out int idNum))
+            {
+                errorMessage = "ID inválido.";
+                return;
+            }
+
+            var colaborador = await ColaboradorService.GetColaboradorByIdAsync(idNum);
+
+            if (colaborador == null)
+            {
+                errorMessage = "Colaborador não encontrado.";
+                return;
+            }
+
+            colaboradorToUpdate = new ColaboradorUpdateModel
+                {
+                    NomeCompleto = colaborador.NomeCompleto,
+                    EmailCorporativo = colaborador.EmailCorporativo
+                };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao carregar dados: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+
+        try
+        {
+            if (!int.TryParse(ColaboradorId, out int idNum))
+            {
+                errorMessage = "ID inválido.";
+                isSubmitting = false;
+                return;
+            }
+
+            await ColaboradorService.UpdateColaboradorAsync(idNum, colaboradorToUpdate);
+
+            successMessage = "Colaborador atualizado com sucesso!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao salvar alterações: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/colaboradores/lista");
+    }
+}
+
+
+

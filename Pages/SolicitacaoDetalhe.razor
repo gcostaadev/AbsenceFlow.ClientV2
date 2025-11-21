@@ -1,0 +1,153 @@
+﻿@page "/solicitacoes/detalhe/{id:int}"
+
+@inject NavigationManager Navigation
+@inject AbsenceFlow.ClientV2.Services.ISolicitacaoApiService SolicitacaoService
+@inject AbsenceFlow.ClientV2.Services.IColaboradorApiService ColaboradorService
+
+@using AbsenceFlow.ClientV2.Models
+@using AbsenceFlow.ClientV2.Enums
+
+<PageTitle>Detalhes da Solicitação</PageTitle>
+
+<h3 class="text-primary mb-4">
+    <i class="bi bi-file-earmark-text me-2"></i> Detalhes da Solicitação
+</h3>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center p-5">
+        <div class="spinner-border text-primary"></div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (solicitacao is null)
+{
+    <div class="alert alert-warning">Solicitação não encontrada.</div>
+}
+else
+{
+    <div class="card shadow p-4">
+
+        <h5 class="card-title text-secondary mb-3">
+            <strong>Status:</strong>
+            <span class="badge @GetStatusBadgeClass(solicitacao.Status)">
+                @GetStatusDescription(solicitacao.Status)
+            </span>
+        </h5>
+
+        <div class="mb-3">
+            <strong>Colaborador:</strong>
+            <span class="text-dark fw-bold">
+                @(colaborador?.NomeCompleto ?? "Não encontrado")
+            </span>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>ID Solicitação:</strong> @solicitacao.Id
+            </div>
+            <div class="col-md-6">
+                <strong>Tipo:</strong> @GetTipoDescription(solicitacao.Tipo)
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>Data de Início:</strong> @solicitacao.DataInicio.ToShortDateString()
+            </div>
+            <div class="col-md-6">
+                <strong>Data de Fim:</strong> @solicitacao.DataFim.ToShortDateString()
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <strong>Dias Úteis Solicitados:</strong> @solicitacao.DiasUteisSolicitados
+        </div>
+
+        @if (!string.IsNullOrEmpty(solicitacao.Motivo))
+        {
+            <div class="mb-3">
+                <strong>Motivo / Justificativa:</strong>
+                <p class="text-dark ms-3">@solicitacao.Motivo</p>
+            </div>
+        }
+
+        <div class="mt-4">
+            <button class="btn btn-secondary" @onclick="Voltar">
+                <i class="bi bi-arrow-left me-2"></i> Voltar
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private SolicitacaoViewModel? solicitacao;
+    private ColaboradorViewModel? colaborador;
+
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSolicitacao();
+    }
+
+    private async Task LoadSolicitacao()
+    {
+        try
+        {
+            solicitacao = await SolicitacaoService.GetSolicitacaoByIdAsync(id);
+
+            if (solicitacao != null)
+            {
+                colaborador = await ColaboradorService.GetColaboradorByIdAsync(
+                    solicitacao.IdColaborador
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao carregar dados: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void Voltar()
+    {
+        Navigation.NavigateTo("/solicitacoes/lista");
+    }
+
+    private string GetStatusBadgeClass(SolicitacaoStatusEnum status) => status switch
+    {
+        SolicitacaoStatusEnum.Pendente => "bg-warning text-dark",
+        SolicitacaoStatusEnum.Aprovada => "bg-success",
+        SolicitacaoStatusEnum.Rejeitada => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusDescription(SolicitacaoStatusEnum status) => status switch
+    {
+        SolicitacaoStatusEnum.Pendente => "Pendente",
+        SolicitacaoStatusEnum.Aprovada => "Aprovada",
+        SolicitacaoStatusEnum.Rejeitada => "Rejeitada",
+        _ => "Desconhecido"
+    };
+
+    private string GetTipoDescription(SolicitacaoTipoEnum tipo) => tipo switch
+    {
+        SolicitacaoTipoEnum.Ferias => "Férias",
+        SolicitacaoTipoEnum.Ausencia => "Ausência",
+        _ => "Desconhecido"
+    };
+}
+
+
+

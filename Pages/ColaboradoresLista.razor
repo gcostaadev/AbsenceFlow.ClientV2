@@ -1,0 +1,141 @@
+﻿@page "/colaboradores/lista"
+@inject AbsenceFlow.ClientV2.Services.IColaboradorApiService ColaboradorService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using AbsenceFlow.ClientV2.Models
+@using System.Globalization
+
+<PageTitle>Lista de Colaboradores</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="text-primary"><i class="bi bi-people-fill me-2"></i> Colaboradores Cadastrados</h3>
+    <a href="/colaboradores/novo" class="btn btn-primary btn-lg shadow">
+        <i class="bi bi-person-plus-fill me-2"></i> Adicionar Novo
+    </a>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex align-items-center justify-content-center p-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <span class="ms-3 text-secondary">Carregando dados dos colaboradores...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (!colaboradores.Any())
+{
+    <div class="alert alert-info text-center p-4">
+        Nenhum colaborador encontrado.
+        <a href="/colaboradores/novo" class="alert-link ms-2">Clique aqui para adicionar um novo.</a>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover table-striped shadow-sm rounded-3 overflow-hidden">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Nome Completo</th>
+                    <th>Email Corporativo</th>
+                    <th>Data Contratação</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var colaborador in colaboradores)
+                {
+                    <tr>
+                        <td>
+                            <span class="badge bg-secondary">
+                                @(colaborador.Id.ToString().Length > 8
+                                    ? colaborador.Id.ToString().Substring(0, 8) + "..."
+                                    : colaborador.Id.ToString())
+                            </span>
+                        </td>
+                        <td>@colaborador.NomeCompleto</td>
+                        <td>@colaborador.EmailCorporativo</td>
+                        <td>@colaborador.DataContratacao.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("pt-BR"))</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-secondary me-1"
+                                    @onclick="() => Detalhe(colaborador.Id)">
+                                <i class="bi bi-eye me-1"></i> Detalhe
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary me-1"
+                                    @onclick="() => Editar(colaborador.Id)">
+                                <i class="bi bi-pencil-square me-1"></i> Editar
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => ExcluirColaborador(colaborador.Id)">
+                                <i class="bi bi-trash me-1"></i> Excluir
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-muted mt-3">Total de colaboradores: @colaboradores.Count</p>
+}
+
+@code {
+    private List<ColaboradorViewModel> colaboradores = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadColaboradores();
+    }
+
+    private async Task LoadColaboradores()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var result = await ColaboradorService.GetAllColaboradoresAsync();
+            if (result != null)
+                colaboradores = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao carregar colaboradores: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void Detalhe(int id) => Navigation.NavigateTo($"/colaboradores/detalhe/{id}");
+
+    private void Editar(int id) => Navigation.NavigateTo($"/colaboradores/editar/{id}");
+
+    private async Task ExcluirColaborador(int id)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>("confirm",
+            $"Tem certeza que deseja excluir o colaborador ID {id}?");
+
+        if (!confirmar) return;
+
+        try
+        {
+            await ColaboradorService.DeleteColaboradorAsync(id);
+            colaboradores.RemoveAll(c => c.Id == id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao excluir colaborador: {ex.Message}";
+        }
+    }
+}
+
+
+
+

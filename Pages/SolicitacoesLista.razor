@@ -1,0 +1,188 @@
+﻿@page "/solicitacoes/lista"
+
+@inject NavigationManager Navigation
+@inject AbsenceFlow.ClientV2.Services.ISolicitacaoApiService SolicitacaoService
+@inject AbsenceFlow.ClientV2.Services.IColaboradorApiService ColaboradorService
+
+@using AbsenceFlow.ClientV2.Models
+@using AbsenceFlow.ClientV2.Enums
+
+<PageTitle>Lista de Solicitações</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="text-primary">
+        <i class="bi bi-calendar-check me-2"></i> Solicitações de Ausência
+    </h3>
+
+    <a href="/solicitacoes/novo" class="btn btn-primary btn-lg shadow">
+        <i class="bi bi-plus-circle me-2"></i> Criar Nova Solicitação
+    </a>
+</div>
+
+<!-- FILTRO -->
+<div class="card shadow-sm p-3 mb-4 bg-light">
+    <div class="row align-items-center">
+        <div class="col-md-4">
+            <label for="statusFilter" class="form-label fw-bold">Filtrar por Status:</label>
+
+            <select id="statusFilter" class="form-select" @bind="filtroStatus">
+                <option value="">Todos</option>
+                <option value="Pendente">Pendente</option>
+                <option value="Aprovada">Aprovada</option>
+                <option value="Rejeitada">Rejeitada</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex align-items-center justify-content-center p-5">
+        <div class="spinner-border text-primary"></div>
+        <span class="ms-3 text-secondary">Carregando solicitações...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (!FilteredSolicitacoes.Any())
+{
+    <div class="alert alert-info text-center p-4">
+        Nenhuma solicitação encontrada.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover table-striped shadow-sm rounded-3 overflow-hidden">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Colaborador</th>
+                    <th>Tipo</th>
+                    <th>Período</th>
+                    <th>Dias Úteis</th>
+                    <th>Status</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var solicitacao in FilteredSolicitacoes)
+                {
+                    <tr class="@GetStatusCssClass(solicitacao.Status)">
+                        <td>@solicitacao.Id</td>
+
+                        <td>
+                            @(!colaboradores.TryGetValue(solicitacao.IdColaborador, out var nome)
+                                ? "Não encontrado"
+                                : nome)
+                        </td>
+
+                        <td>@solicitacao.Tipo</td>
+
+                        <td>
+                            @solicitacao.DataInicio.ToShortDateString()
+                            -
+                            @solicitacao.DataFim.ToShortDateString()
+                        </td>
+
+                        <td>@solicitacao.DiasUteisSolicitados</td>
+
+                        <td>
+                            <span class="badge @GetStatusBadgeClass(solicitacao.Status)">
+                                @solicitacao.Status
+                            </span>
+                        </td>
+
+                        <td class="text-center">
+                            <a href="@GetDetailsLink(solicitacao.Id, solicitacao.Status)"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-eye me-1"></i> Detalhe
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-muted mt-3">Total exibido: @FilteredSolicitacoes.Count()</p>
+}
+
+@code {
+    private List<SolicitacaoViewModel> solicitacoes = new();
+    private Dictionary<int, string> colaboradores = new();
+
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    private string filtroStatus = string.Empty;
+
+    private IEnumerable<SolicitacaoViewModel> FilteredSolicitacoes =>
+        solicitacoes.Where(s =>
+            string.IsNullOrEmpty(filtroStatus)
+            || s.Status.ToString().Equals(filtroStatus, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSolicitacoes();
+    }
+
+    private async Task LoadSolicitacoes()
+    {
+        try
+        {
+            solicitacoes = await SolicitacaoService.GetAllSolicitacoesAsync();
+
+            // carregar colaboradores uma única vez
+            foreach (var s in solicitacoes)
+            {
+                if (!colaboradores.ContainsKey(s.IdColaborador))
+                {
+                    var c = await ColaboradorService.GetColaboradorByIdAsync(s.IdColaborador);
+                    if (c != null)
+                        colaboradores[s.IdColaborador] = c.NomeCompleto;
+                }
+            }
+
+            solicitacoes = solicitacoes
+                .OrderByDescending(s => s.Status == SolicitacaoStatusEnum.Pendente)
+                .ThenByDescending(s => s.CreatedAt)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao carregar solicitações: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetStatusCssClass(SolicitacaoStatusEnum status) => status switch
+    {
+        SolicitacaoStatusEnum.Pendente => "table-warning",
+        SolicitacaoStatusEnum.Aprovada => "table-success",
+        SolicitacaoStatusEnum.Rejeitada => "table-danger",
+        _ => "",
+    };
+
+    private string GetStatusBadgeClass(SolicitacaoStatusEnum status) => status switch
+    {
+        SolicitacaoStatusEnum.Pendente => "bg-warning text-dark",
+        SolicitacaoStatusEnum.Aprovada => "bg-success",
+        SolicitacaoStatusEnum.Rejeitada => "bg-danger",
+        _ => "bg-secondary",
+    };
+
+    private string GetDetailsLink(int id, SolicitacaoStatusEnum status)
+    {
+        if (status == SolicitacaoStatusEnum.Pendente)
+            return $"/solicitacoes/revisao/{id}";
+
+        return $"/solicitacoes/detalhe/{id}";
+    }
+}

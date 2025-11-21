@@ -1,0 +1,135 @@
+﻿@page "/colaboradores/novo"
+@inject AbsenceFlow.ClientV2.Services.IColaboradorApiService ColaboradorService
+@inject NavigationManager Navigation
+
+@using AbsenceFlow.ClientV2.Models
+@using System.ComponentModel.DataAnnotations
+
+<div class="d-flex justify-content-center mt-5">
+    <div class="col-lg-6 col-md-8 col-sm-12">
+
+        <div class="card shadow-lg p-4">
+            <h3 class="card-title text-primary mb-4 border-bottom pb-2">
+                <i class="bi bi-person-fill-add me-2"></i> Novo Colaborador
+            </h3>
+
+            <div class="card-body">
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success" role="alert">
+                        @successMessage
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Erro: @errorMessage
+                    </div>
+                }
+
+                <EditForm Model="@inputModel" OnValidSubmit="@HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="alert alert-warning p-2" />
+
+                    <div class="form-group mb-4">
+                        <label for="nome" class="form-label fw-bold">Nome Completo</label>
+                        <InputText id="nome" @bind-Value="inputModel.NomeCompleto"
+                                   class="form-control form-control-lg"
+                                   placeholder="Ex: João da Silva" />
+                        <ValidationMessage For="@(() => inputModel.NomeCompleto)"
+                                           class="text-danger small" />
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label for="email" class="form-label fw-bold">E-mail Corporativo</label>
+                        <InputText id="email" @bind-Value="inputModel.EmailCorporativo"
+                                   class="form-control form-control-lg"
+                                   placeholder="Ex: joao.silva@absenceflow.com" />
+                        <ValidationMessage For="@(() => inputModel.EmailCorporativo)"
+                                           class="text-danger small" />
+                    </div>
+
+                    <div class="form-group mb-5">
+                        <label for="dataContratacao" class="form-label fw-bold">Data de Contratação</label>
+                        <InputDate id="dataContratacao" @bind-Value="inputModel.DataContratacao"
+                                   class="form-control form-control-lg" />
+                        <ValidationMessage For="@(() => inputModel.DataContratacao)"
+                                           class="text-danger small" />
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"
+                                      role="status" aria-hidden="true"></span>
+                                @:Salvando...
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                @:Criar Colaborador
+                            }
+                        </button>
+
+                        <!-- BOTÃO CANCELAR CORRIGIDO -->
+                        <a href="/colaboradores/lista" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-x-circle me-2"></i> Cancelar
+                        </a>
+                    </div>
+                </EditForm>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ColaboradorInputModel inputModel = new ColaboradorInputModel();
+    private bool isSubmitting = false;
+    private string successMessage;
+    private string errorMessage;
+
+    protected override void OnInitialized()
+    {
+        inputModel.DataContratacao = DateTime.Today;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+
+        try
+        {
+            int newId = await ColaboradorService.CreateColaboradorAsync(inputModel);
+
+            successMessage = $"Colaborador criado com sucesso! ID: {newId}. Você pode adicionar outro agora.";
+
+            inputModel = new ColaboradorInputModel
+                {
+                    DataContratacao = DateTime.Today
+                };
+        }
+        catch (HttpRequestException httpEx) when (httpEx.Message.Contains("409"))
+        {
+            errorMessage = "Ocorreu um erro: Este e-mail corporativo já está em uso (Erro 409).";
+        }
+        catch (HttpRequestException httpEx)
+        {
+            errorMessage = $"Erro de conexão com a API. Verifique se ela está rodando na porta 7230. Detalhe: {httpEx.Message}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro inesperado: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
+

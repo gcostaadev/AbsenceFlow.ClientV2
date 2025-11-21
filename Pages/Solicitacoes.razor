@@ -1,0 +1,203 @@
+﻿@page "/solicitacoes"
+@inject AbsenceFlow.ClientV2.Services.ISolicitacaoApiService SolicitacaoService
+@inject AbsenceFlow.ClientV2.Services.IColaboradorApiService ColaboradorService
+@inject NavigationManager Navigation
+
+@using AbsenceFlow.ClientV2.Enums
+@using AbsenceFlow.ClientV2.Models
+
+<PageTitle>Gerenciar Solicitações</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="text-primary">
+        <i class="bi bi-calendar-check me-2"></i> Gerenciamento de Solicitações
+    </h3>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <span class="ms-3 text-secondary">Carregando solicitações...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
+    </div>
+}
+else if (solicitacoes == null || !solicitacoes.Any())
+{
+    <div class="alert alert-info text-center p-4">
+        <i class="bi bi-info-circle me-2"></i> Nenhuma solicitação pendente encontrada.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover table-striped shadow-sm rounded-3 overflow-hidden">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Colaborador</th>
+                    <th>Tipo</th>
+                    <th>Período</th>
+                    <th>Dias</th>
+                    <th>Status</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var solicitacao in solicitacoes)
+                {
+                    <tr>
+                        <td>
+                            <span class="badge bg-secondary">
+                                @solicitacao.Id
+                            </span>
+                        </td>
+                        <td>@GetColaboradorName(solicitacao.IdColaborador)</td>
+                        <td>@GetTipoDescription(solicitacao.Tipo)</td>
+                        <td>@solicitacao.DataInicio.ToShortDateString() - @solicitacao.DataFim.ToShortDateString()</td>
+                        <td>@solicitacao.DiasUteisSolicitados</td>
+                        <td>
+                            <span class="@GetStatusBadgeClass(solicitacao.Status)">
+                                @GetStatusDescription(solicitacao.Status)
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-success me-2"
+                                    @onclick="(() => UpdateStatus(solicitacao.Id, SolicitacaoStatusEnum.Aprovada))"
+                                    disabled="@isUpdating">
+                                <i class="bi bi-check-lg me-1"></i> Aceitar
+                            </button>
+
+                            <button class="btn btn-sm btn-danger me-2"
+                                    @onclick="(() => UpdateStatus(solicitacao.Id, SolicitacaoStatusEnum.Rejeitada))"
+                                    disabled="@isUpdating">
+                                <i class="bi bi-x-lg me-1"></i> Rejeitar
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-primary"
+                                    @onclick="() => Detalhe(solicitacao.Id)">
+                                <i class="bi bi-eye me-1"></i> Detalhe
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-muted mt-3">Total de solicitações pendentes: @solicitacoes.Count</p>
+}
+
+@code {
+    private List<SolicitacaoViewModel> solicitacoes;
+    private Dictionary<int, string> colaboradorNames = new Dictionary<int, string>();
+    private bool isLoading = true;
+    private bool isUpdating = false;
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadColaboradores();
+        await LoadSolicitacoes();
+    }
+
+    private async Task LoadColaboradores()
+    {
+        try
+        {
+            var colaboradores = await ColaboradorService.GetAllColaboradoresAsync();
+            colaboradorNames = colaboradores.ToDictionary(c => c.Id, c => c.NomeCompleto);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao carregar colaboradores: {ex.Message}";
+        }
+    }
+
+    private async Task LoadSolicitacoes()
+    {
+        isLoading = true;
+
+        try
+        {
+            // Carrega todas as solicitações e filtra apenas as pendentes
+            solicitacoes = (await SolicitacaoService.GetAllSolicitacoesAsync())
+                            .Where(s => s.Status == SolicitacaoStatusEnum.Pendente)
+                            .ToList();
+        }
+        catch (Exception ex)
+        {
+            if (string.IsNullOrEmpty(errorMessage))
+                errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateStatus(int solicitacaoId, SolicitacaoStatusEnum newStatus)
+    {
+        isUpdating = true;
+        errorMessage = null;
+
+        try
+        {
+            await SolicitacaoService.UpdateStatusAsync(solicitacaoId, newStatus);
+            // Recarrega apenas as pendentes, removendo a que foi atualizada
+            solicitacoes = solicitacoes.Where(s => s.Id != solicitacaoId).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Falha ao atualizar o status da solicitação {solicitacaoId}: {ex.Message}";
+        }
+        finally
+        {
+            isUpdating = false;
+        }
+    }
+
+    private string GetColaboradorName(int idColaborador)
+    {
+        return colaboradorNames.TryGetValue(idColaborador, out var name)
+            ? name
+            : $"ID: {idColaborador} (Não Encontrado)";
+    }
+
+    private string GetStatusDescription(SolicitacaoStatusEnum status) => status switch
+    {
+        SolicitacaoStatusEnum.Pendente => "Pendente",
+        SolicitacaoStatusEnum.Aprovada => "Aprovada",
+        SolicitacaoStatusEnum.Rejeitada => "Rejeitada",
+        _ => "Desconhecido"
+    };
+
+    private string GetTipoDescription(SolicitacaoTipoEnum tipo) => tipo switch
+    {
+        SolicitacaoTipoEnum.Ferias => "Férias",
+        SolicitacaoTipoEnum.Ausencia => "Ausência",
+        _ => "Desconhecido"
+    };
+
+    private string GetStatusBadgeClass(SolicitacaoStatusEnum status) => status switch
+    {
+        SolicitacaoStatusEnum.Pendente => "badge text-bg-warning",
+        SolicitacaoStatusEnum.Aprovada => "badge text-bg-success",
+        SolicitacaoStatusEnum.Rejeitada => "badge text-bg-danger",
+        _ => "badge text-bg-secondary"
+    };
+
+    private void Detalhe(int id)
+    {
+        Navigation.NavigateTo($"/solicitacoes/revisao/{id}");
+    }
+}
+
+
+
+
