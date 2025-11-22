@@ -6,7 +6,7 @@
 
 <PageTitle>Início - AbsenceFlow</PageTitle>
 
-<!-- Hero Section / Boas-Vindas -->
+
 <div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
     <div class="container-fluid py-5">
         <h1 class="display-3 fw-bold text-primary">Bem-vindo(a) ao AbsenceFlow</h1>
@@ -14,14 +14,14 @@
             Foco no que importa. Gerencie e organize todas as solicitações de ausência e férias da sua equipe de forma rápida e eficiente.
         </p>
         <hr class="my-4">
-        <!-- Botão Call-to-Action -->
+        
         <a href="/solicitacoes" class="btn btn-primary btn-lg shadow-sm">
             <i class="bi bi-rocket-takeoff me-2"></i> Começar a Gerenciar
         </a>
     </div>
 </div>
 
-<!-- Mensagem de Erro ou Carregamento -->
+
 @if (isLoading)
 {
     <div class="d-flex align-items-center mb-4 text-secondary">
@@ -36,12 +36,12 @@ else if (!string.IsNullOrEmpty(errorMessage))
     </div>
 }
 
-<!-- Seção de Ações Rápidas (Cards) -->
+
 <h2 class="mb-4 text-secondary"><i class="bi bi-lightning-charge me-2"></i> Ações Rápidas</h2>
 
 <div class="row g-4">
 
-    <!-- Card 1: Gerenciar Solicitações Pendentes -->
+    
     <div class="col-lg-4 col-md-6">
         <div class="card h-100 border-warning border-3 shadow-lg">
             <div class="card-body">
@@ -49,7 +49,7 @@ else if (!string.IsNullOrEmpty(errorMessage))
                     <h5 class="card-title mb-0 text-warning">Solicitações Pendentes</h5>
                     <i class="bi bi-bell-fill display-5 text-warning"></i>
                 </div>
-                <!-- DADOS REAIS: totalSolicitacoesPendentes -->
+                
                 <h1 class="display-4 fw-bold my-3">@totalSolicitacoesPendentes</h1>
                 <p class="card-text text-muted">Aguardando sua aprovação ou rejeição.</p>
                 <a href="/solicitacoes" class="btn btn-sm btn-outline-warning w-100">
@@ -59,7 +59,7 @@ else if (!string.IsNullOrEmpty(errorMessage))
         </div>
     </div>
 
-    <!-- Card 2: Criar Nova Solicitação (MELHORIA VISUAL AQUI) -->
+    
     <div class="col-lg-4 col-md-6">
         <div class="card h-100 border-primary border-3 shadow-lg">
             <div class="card-body">
@@ -67,7 +67,7 @@ else if (!string.IsNullOrEmpty(errorMessage))
                     <h5 class="card-title mb-0 text-primary">Nova Solicitação</h5>
                     <i class="bi bi-calendar-plus display-5 text-primary"></i>
                 </div>
-                <!-- NOVO CONTEÚDO VISUAL -->
+                
                 <div class="d-flex align-items-center justify-content-center my-3" style="height: 60px;">
                     <i class="bi bi-send display-4 text-muted opacity-50"></i>
                 </div>
@@ -79,7 +79,7 @@ else if (!string.IsNullOrEmpty(errorMessage))
         </div>
     </div>
 
-    <!-- Card 3: Gerenciar Colaboradores -->
+    
     <div class="col-lg-4 col-md-12">
         <div class="card h-100 border-info border-3 shadow-lg">
             <div class="card-body">
@@ -87,7 +87,7 @@ else if (!string.IsNullOrEmpty(errorMessage))
                     <h5 class="card-title mb-0 text-info">Total de Colaboradores</h5>
                     <i class="bi bi-people-fill display-5 text-info"></i>
                 </div>
-                <!-- DADOS REAIS: totalColaboradores -->
+                
                 <h1 class="display-4 fw-bold my-3">@totalColaboradores</h1>
                 <p class="card-text text-muted">Visualize ou cadastre novos membros na plataforma.</p>
                 <a href="/colaboradores/novo" class="btn btn-sm btn-outline-info w-100">
@@ -116,21 +116,21 @@ else if (!string.IsNullOrEmpty(errorMessage))
 
         try
         {
-            // 1. Carregar Solicitações e contar as Pendentes
+            
             var solicitacoes = await SolicitacaoService.GetAllSolicitacoesAsync();
-            // Filtra e conta apenas aquelas com status Pendente
+            
             totalSolicitacoesPendentes = solicitacoes.Count(s => s.Status == SolicitacaoStatusEnum.Pendente);
 
-            // 2. Carregar Colaboradores e contar o total
+            
             var colaboradores = await ColaboradorService.GetAllColaboradoresAsync();
             totalColaboradores = colaboradores.Count();
         }
         catch (Exception ex)
         {
-            // Mensagem de erro padrão para falhas de conexão ou API
+            
             errorMessage = $"Erro ao carregar dados do Dashboard: {ex.Message}. Certifique-se de que a API está rodando corretamente.";
 
-            // Define os contadores como 0 em caso de erro
+            
             totalSolicitacoesPendentes = 0;
             totalColaboradores = 0;
         }

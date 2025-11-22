@@ -125,7 +125,7 @@ else
 
         try
         {
-            // Carrega todas as solicitações e filtra apenas as pendentes
+            
             solicitacoes = (await SolicitacaoService.GetAllSolicitacoesAsync())
                             .Where(s => s.Status == SolicitacaoStatusEnum.Pendente)
                             .ToList();
@@ -149,7 +149,7 @@ else
         try
         {
             await SolicitacaoService.UpdateStatusAsync(solicitacaoId, newStatus);
-            // Recarrega apenas as pendentes, removendo a que foi atualizada
+            
             solicitacoes = solicitacoes.Where(s => s.Id != solicitacaoId).ToList();
         }
         catch (Exception ex)

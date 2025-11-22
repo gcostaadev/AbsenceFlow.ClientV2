@@ -19,7 +19,7 @@
     </a>
 </div>
 
-<!-- FILTRO -->
+
 <div class="card shadow-sm p-3 mb-4 bg-light">
     <div class="row align-items-center">
         <div class="col-md-4">
@@ -136,7 +136,7 @@ else
         {
             solicitacoes = await SolicitacaoService.GetAllSolicitacoesAsync();
 
-            // carregar colaboradores uma única vez
+            
             foreach (var s in solicitacoes)
             {
                 if (!colaboradores.ContainsKey(s.IdColaborador))
